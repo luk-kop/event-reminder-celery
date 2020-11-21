@@ -45,7 +45,7 @@ def send_email(subject, recipients, event, mail_server, mail_port, mail_security
             smtp_obj.login(mail_sender, mail_pass)
             current_app.logger_admin.info(f'Email service: connected with "{mail_server}:{mail_port}"')
             email_content(recipients_list, event, smtp_obj, msg)
-        current_app.logger_admin.info(f'Email service: disconected with "{mail_server}:{mail_port}"')
+        current_app.logger_admin.info(f'Email service: disconnected with "{mail_server}:{mail_port}"')
     elif mail_security == 'ssl':
         with smtplib.SMTP_SSL(host=mail_server, port=mail_port, timeout=5) as smtp_obj:
             # smtp_obj.set_debuglevel(1)
@@ -53,7 +53,7 @@ def send_email(subject, recipients, event, mail_server, mail_port, mail_security
             smtp_obj.login(mail_sender, mail_pass)
             current_app.logger_admin.info(f'Email service: connected with "{mail_server}:{mail_port}"')
             email_content(recipients_list, event, smtp_obj, msg)
-        current_app.logger_admin.info(f'Email service: disconected with "{mail_server}:{mail_port}"')
+        current_app.logger_admin.info(f'Email service: disconnected with "{mail_server}:{mail_port}"')
 
 
 def test_email(mail_server, mail_port, mail_security, mail_sender, mail_pass):
@@ -80,7 +80,7 @@ def test_email(mail_server, mail_port, mail_security, mail_sender, mail_pass):
         current_app.logger_admin.info('Email service test: connection issue, wrong credentials')
         return False
     except Exception as error:
-        flash('Connection issue. Check mail configurration!', 'danger')
+        flash('Connection issue. Check mail configuration!', 'danger')
         current_app.logger_admin.info('Email service test: connection issue, wrong configuration')
         return False
 

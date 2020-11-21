@@ -18,6 +18,7 @@ from reminder.extensions import (
     csrf,
     scheduler,
     cache,
+    celery,
 )
 from reminder.custom_handler import DatabaseHandler
 from reminder.models import Event
@@ -38,6 +39,7 @@ def create_app():
         register_extensions(app)
         register_blueprints(app)
         configure_logger(app)
+        init_celery(app)
         return app
 
 
@@ -62,6 +64,22 @@ def register_extensions(app):
     # Initialize ElasticSearch
     app.elasticsearch = Elasticsearch([app.config['ELASTICSEARCH_URL']]) if app.config['ELASTICSEARCH_URL'] else None
     cache.init_app(app)
+    # Add periodic tasks - do wywyalenia
+    # celery_beat_schedule = {
+    #     "time_scheduler": {
+    #         "task": "app.timer",
+    #         # Run every 10 seconds
+    #         "schedule": 10.0,
+    #     }
+    # }
+    # app.celery = Celery(app.name)
+    # app.celery.conf.update(
+    #     broker=app.config['CELERY_BROKER_URL'],
+    #     result_backend=app.config["CELERY_RESULT_BACKEND"],
+    #     timezone="UTC",
+    #     beat_schedule=celery_beat_schedule,
+    # )
+    # celery.conf.update(app.config)    # Any additional configuration options for Celery can be passed directly from Flask's configuration
 
 
 def register_blueprints(app):
@@ -111,3 +129,20 @@ def configure_logger(app):
     app.logger_admin.addHandler((DatabaseHandler(db.session)))
 
     app.logger_general.info('Reminder App startup')
+
+
+def init_celery(app=None):
+    """
+    Initialize celery.
+    """
+    app = app or create_app()
+    celery.conf.update(app.config.get("CELERY", {}))
+
+    class ContextTask(celery.Task):
+        """Make celery tasks work with Flask app context"""
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
+    return celery

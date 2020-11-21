@@ -2,7 +2,7 @@
 
 The **Event Reminder** is a simple web application based on **[Flask](https://flask.palletsprojects.com/en/1.1.x/)** framework, **[Bootstrap](https://getbootstrap.com/)** user interface framework and **[FullCalendar](https://fullcalendar.io/)** full-sized JavaScript calendar. 
  
-The main purpose of the **Event Reminder** application is to send notifications about upcoming events to selected users. The application allows a standard user to enter event data, process it and display with the **FullCalendar** API. Moreover, the application has a built-in admin panel for the management of users, events, notification service, display app related logs and basic system info on app dashboard partly based on **[Chart.js](https://www.chartjs.org/)**. Sending reminders through the notification service is performed by the SMTP e-mail server provided by the admin user and by the APScheduler library.
+The main purpose of the **Event Reminder** application is to send notifications about upcoming events to selected users. The application allows a standard user to enter event data, process it and display with the **FullCalendar** API. Moreover, the application has a built-in admin panel for the management of users, events, notification service, display app related logs and basic system info on app dashboard partly based on **[Chart.js](https://www.chartjs.org/)**. Sending reminder messages through the notification service is performed by third-party SMTP e-mail server and **Celery**/**Celery Readbeat** libraries.
 The application has implemented integration with the **Elasticsearch** search engine.
 ***
 
@@ -18,7 +18,8 @@ Python third party packages:
 * [Flask](https://flask.palletsprojects.com/en/1.1.x/)
 * [Flask-SQLalchemy](https://flask-sqlalchemy.palletsprojects.com/en/2.x/)
 * [Flask-WTF](https://flask-wtf.readthedocs.io/en/stable/)
-* [Flask-APSchedular](https://github.com/viniciuschiele/flask-apscheduler)
+* [Celery](https://docs.celeryproject.org/en/stable/index.html)
+* [Celery Redbeat](https://pypi.org/project/celery-redbeat/)
 * [Flask-Login](https://flask-login.readthedocs.io/en/latest/)
 * [Flask-Caching](https://flask-caching.readthedocs.io/en/latest/)
 * [Requests](https://requests.readthedocs.io/en/master/)
@@ -49,7 +50,10 @@ MAIL_SERVER=smtp.example.com
 MAIL_PORT=587
 MAIL_USERNAME=xxx.yyy@example.com               # account which will be used for SMTP email service
 MAIL_PASSWORD=xxxxxxx                           # password for above account
-ELASTICSEARCH_URL=http://localhost:9200         # optional 
+ELASTICSEARCH_URL=http://localhost:9200         # optional
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND_URL=redis://localhost:6379/0
+CELERY_REDBEAT_REDIS_URL=redis://localhost:6379/1
 ```
 The `.env` file will be imported by application on startup.
 
@@ -78,8 +82,28 @@ Before running the Event Reminder app you can use script `init_db.py` to initial
 
 After adding dummy data, you can start the application. First of all set the `FLASK_APP` environment variable to point `run.py` script and then invoke `flask run` command.
 ```bash
+# On the first terminal run:
 (venv) $ export FLASK_APP=run.py
 # in MS Windows OS run 'set FLASK_APP=run.py'
 (venv) $ cd ..
 (venv) $ flask run
+```
+
+In order to use the notification service correctly, the Celery Beat and Celery Worker should be activated.
+They can be run in two ways: for the development or production environment.  
+- For development or test purposes you can run Celery Beat and Celery Worker on the same terminal:
+```bash
+# Run another (second) terminal session and enter the following commands:
+source venv/bin/activate
+(venv} $ celery -A reminder.celery_app:app worker --beat --loglevel=info
+```
+- For production purposes you should run Celery Beat and Celery Worker on two separate terminals:
+```bash
+# On the second terminal run a Celery Worker
+source venv/bin/activate
+(venv} $ celery -A reminder.celery_app:app worker --loglevel=info
+
+# On the third terminal run a Celery Beat
+source venv/bin/activate
+(venv} $ celery -A reminder.celery_app:app beat --loglevel=info
 ```

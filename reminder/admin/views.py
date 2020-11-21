@@ -1,20 +1,24 @@
 import datetime
 import json
 import time
+import re
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, current_app, session
 from flask_login import current_user
 from sqlalchemy import func, desc, asc
 import requests
 import elasticsearch.exceptions
+from celery import schedules
 
-from reminder.extensions import db, scheduler, cache
+from reminder.extensions import db, scheduler, cache, celery
 from reminder.models import Role, User, Event, Notification, Log
 from reminder.main import views as main_views
 from reminder.admin import smtp_mail
 from reminder.custom_decorators import admin_required, login_required, cancel_click
 from reminder.admin.forms import NewUserForm, EditUserForm, NotifyForm
 from reminder.custom_wtforms import flash_errors
+from redbeat import RedBeatSchedulerEntry as Entry
+from redis import Redis, ConnectionError
 
 
 admin_bp = Blueprint('admin_bp', __name__,
@@ -57,7 +61,6 @@ def background_job():
     """
     with scheduler.app.app_context():
         today = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-        print(today)    # only for tests
         events_to_notify = Event.query.filter(Event.time_notify <= today,
                                               Event.is_active == True,
                                               Event.to_notify == True,
@@ -75,7 +78,7 @@ def background_job():
                                      cache.get('mail_password'))
                 current_app.logger_admin.info(f'Notification service: notification has been sent to: {users_to_notify}')
                 # only for test
-                print(f'Mail sent to {users_to_notify}')
+                # print(f'Mail sent to {users_to_notify}')
                 event.notification_sent = True
             db.session.commit()
         except Exception as error:
@@ -213,6 +216,9 @@ def users():
     """
     List user's data from db in Admin Portal.
     """
+
+    # entry = Entry.from_key(key='redbeat:test-task', app=celery)
+    # entry.delete()
     # Pagination
     users_per_page = 10
     page = request.args.get('page', 1, type=int)
@@ -415,9 +421,8 @@ def act_event(event_id):
 @admin_required
 def notify():
     """
-    Func allows to start notification service and change the service configuration.
+    View allows to start notification service and change the service configuration.
     """
-    # print(scheduler.get_jobs(jobstore='default'))
     mail_config_cache = cache.get_dict('mail_server', 'mail_port', 'mail_security', 'mail_username', 'mail_password')
     # Notification config data (for interval and interval unit).
     notification_config = Notification.query.first()
@@ -431,8 +436,37 @@ def notify():
         'notify_unit': notification_config.notify_unit,
         'notify_interval': notification_config.notify_interval,
     }
+    try:
+        # Get scheduler job if exists.
+        scheduler_job = Entry.from_key(key='redbeat:background-task', app=celery)
+        # scheduler_job.delete()
+    except KeyError:
+        # Create scheduler job if not already exists.
+        interval = schedules.schedule(run_every=10)
+        scheduler_job = Entry(name='background-task',
+                              task='notify_async_check',
+                              schedule=interval,
+                              relative=True,
+                              enabled=False,
+                              app=celery)
     if request.method == "POST":
         form = NotifyForm()
+        # Check whether redis is running
+        redis_broker_url = celery.conf['broker_url']
+        mo = re.search(r'^redis://(.*):(\d{1,5})/', redis_broker_url)
+        if mo:
+            redis_broker_host = mo.group(1)
+            redis_broker_port = mo.group(2)
+            rs = Redis(host=redis_broker_host, port=redis_broker_port)
+            try:
+                rs.ping()
+            except ConnectionError:
+                current_app.logger_admin.error(f'Redis host "{redis_broker_host}" is not running.')
+                flash("Sorry! Redis host is not running!", 'danger')
+                return redirect(url_for('admin_bp.notify'))
+        else:
+            flash("Sorry! Check redis host configuration", 'danger')
+            return redirect(url_for('admin_bp.notify'))
         # Validate form data on server-side
         if form.validate_on_submit():
             # Fetch data from form.
@@ -469,35 +503,39 @@ def notify():
                                                         notify_config['mail_password'])
             else:
                 test_mail_config = False
-            # Test mail configuration before running service.
-            if not notify_status_form and scheduler.get_jobs():
-                scheduler.remove_job('my_job_id')
+
+            if not notify_status_form and scheduler_job.enabled:
+                scheduler_job.enabled = False
+                scheduler_job.save()
                 current_app.logger_admin.info(f'Notification service has been turned off by "{current_user.username}"')
                 flash('The notify service has been turned off!', 'success')
-            elif scheduler.get_jobs() and not test_mail_config:
-                scheduler.remove_job('my_job_id')
+            elif scheduler_job.enabled and not test_mail_config:
+                scheduler_job.enabled = False
+                scheduler_job.save()
             elif notify_status_form == 'on' and test_mail_config:
-                if not scheduler.get_jobs():
+                if not scheduler_job.enabled:
                     current_app.logger_admin.info(f'Notification service has been started by "{current_user.username}"')
+                    scheduler_job.enabled = True
                 else:
                     current_app.logger_admin.info(f'Notification service config has been changed by '
                                                   f'"{current_user.username}"')
                 if notify_unit_form == 'seconds':
-                    scheduler.add_job(func=background_job, trigger='interval', replace_existing=True, max_instances=1,
-                                      seconds=int(notify_interval_form), id='my_job_id')
+                    interval_time = int(notify_interval_form)
                 elif notify_unit_form == 'minutes':
-                    scheduler.add_job(func=background_job, trigger='interval', replace_existing=True, max_instances=1,
-                                      minutes=int(notify_interval_form), id='my_job_id')
+                    interval_time = int(notify_interval_form) * 60
                 else:
-                    scheduler.add_job(func=background_job, trigger='interval', replace_existing=True, max_instances=1,
-                                      hours=int(notify_interval_form), id='my_job_id')
+                    interval_time = int(notify_interval_form) * 3600
+                interval = schedules.schedule(run_every=interval_time)
+                scheduler_job.schedule = interval
+                scheduler_job.reschedule(last_run_at=datetime.datetime.utcnow() - datetime.timedelta(seconds=interval_time))
+                scheduler_job.save()
                 flash('Connection with mail server established correctly! The notify service is running!', 'success')
             # Save notification settings to db.
             if notify_unit_form != notify_config['notify_unit'] or notify_interval_form != notify_config['notify_interval']:
                 notification_config.notify_unit = notify_unit_form
                 notification_config.notify_interval = int(notify_interval_form)
                 db.session.commit()
-                if not scheduler.get_jobs():
+                if not scheduler_job:
                     current_app.logger_admin.info(f'Notification service config has been changed by '
                                                   f'"{current_user.username}"')
             # Update the rest of the data in 'notify_config' dic.
@@ -505,8 +543,8 @@ def notify():
             notify_config['notify_interval'] = notify_interval_form
         if form.errors:
             flash_errors(form)
-    # Determine weather some scheduler jobs exist - if True, notification service is running
-    service_run = True if scheduler.get_jobs() else False
+    # Determine whether some scheduler jobs exist - if True, notification service is running
+    service_run = True if scheduler_job.enabled else False
     return render_template('admin/notify.html', service_run=service_run, **notify_config)
 
 
@@ -515,7 +553,7 @@ def notify():
 @admin_required
 def logs():
     """
-    List logs.
+    List app's logs.
     """
     logs_per_page = 12
     page = request.args.get('page', 1, type=int)
@@ -561,7 +599,7 @@ def logs():
 @admin_required
 def logs_clear():
     """
-    Clear logs.
+    Clear app's logs.
     """
     if request.args.get('range') == 'all':
         db.session.query(Log).delete()
@@ -587,6 +625,9 @@ def logs_clear():
 @login_required
 @admin_required
 def search_engine():
+    """
+    View shows search engine's status and config in admin dashboard.
+    """
     search_service_status = False if not current_app.elasticsearch or not current_app.elasticsearch.ping() else True
     search_url = current_app.config.get('ELASTICSEARCH_URL')
     # Get elasticsearch node info
@@ -619,7 +660,7 @@ def search_engine():
 @admin_required
 def search():
     """
-    Search engine for admin blueprint
+    Search engine for admin blueprint.
     """
     if not current_app.elasticsearch or not current_app.elasticsearch.ping():
         flash(f'Sorry! No connection with search engine!', 'danger')

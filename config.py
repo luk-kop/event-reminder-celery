@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from datetime import timedelta
 
 from dotenv import load_dotenv
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
@@ -40,6 +41,23 @@ class Config:
     # Apscheduler Config
     SCHEDULER_JOBSTORES = {
         'default': SQLAlchemyJobStore(url=os.environ.get('DATABASE_URL_SCHEDULAR'))
+    }
+    # Celery Config
+    CELERY = {
+        'broker_url': os.environ.get("CELERY_BROKER_URL"),
+        'result_backend': os.environ.get("CELERY_RESULT_BACKEND_URL"),
+        'redbeat_redis_url': os.environ.get('CELERY_REDBEAT_REDIS_URL'),
+        'beat_scheduler': 'redbeat.RedBeatScheduler',
+        'redbeat_key_prefix': 'redbeat:',
+        'beat_max_loop_interval': 5,
+        'beat_schedule': {}
+        # 'beat_schedule': {
+        #     'time_scheduler': {
+        #         # 'task': 'reminder.tasks.example.dummy_task',
+        #         'task': 'dummy_task',
+        #         'schedule': 10.0,
+        #     }
+        # }
     }
 
 
