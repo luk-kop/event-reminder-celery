@@ -173,7 +173,7 @@ def event(event_id):
     """
     event = Event.query.filter_by(id=event_id).first_or_404()
     # Fetch users that can be notified (only with user role)
-    users_to_notify = User.query.filter_by(role_id=2).all()
+    users_to_notify = User.get_all_standard_users()
     today = datetime.date.today().strftime("%Y-%m-%d")
     if request.method == "POST":
         event.title = request.form.get('title')

@@ -24,17 +24,18 @@ def notify_async_check():
     try:
         for event in events_to_notify:
             users_to_notify = [user for user in event.notified_users]
-            smtp_mail.send_email('Attention! Upcoming event!',
-                                 users_to_notify,
-                                 event,
-                                 cache.get('mail_server'),
-                                 cache.get('mail_port'),
-                                 cache.get('mail_security'),
-                                 cache.get('mail_username'),
-                                 cache.get('mail_password'))
-            current_app.logger_admin.info(f'Notification service: notification has been sent to: {users_to_notify}')
+            # Return only notified users
+            users_notified = smtp_mail.send_email('Attention! Upcoming event!',
+                                                  users_to_notify,
+                                                  event,
+                                                  cache.get('mail_server'),
+                                                  cache.get('mail_port'),
+                                                  cache.get('mail_security'),
+                                                  cache.get('mail_username'),
+                                                  cache.get('mail_password'))
+            current_app.logger_admin.info(f'Notification service: notification has been sent to: {users_notified}')
             # only for test
-            print(f'Mail sent to {users_to_notify}')
+            print(f'Mail sent to {users_notified}')
             event.notification_sent = True
         db.session.commit()
     except Exception as error:
