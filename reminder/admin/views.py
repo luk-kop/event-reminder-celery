@@ -310,6 +310,8 @@ def new_user():
             return redirect(url_for('admin_bp.users'))
         if form.errors:
             flash_errors(form)
+            # Render previous user input in form fields
+            return render_template('admin/new_user.html', title='New user', form_prev_input=form)
     return render_template('admin/new_user.html', title='New user')
 
 
@@ -349,6 +351,8 @@ def user(user_id):
             return redirect(url_for('admin_bp.users'))
         if form.errors:
             flash_errors(form)
+            # Render previous user input in form fields
+            return render_template('admin/user.html', form_prev_input=form)
     return render_template('admin/user.html', user=user)
 
 

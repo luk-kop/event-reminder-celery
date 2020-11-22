@@ -94,6 +94,7 @@ def test_email(mail_server, mail_port, mail_security, mail_sender, mail_pass):
         current_app.logger_admin.info('Email service test: connection issue, wrong credentials')
         return False
     except Exception as error:
+        # smtplib.SMTPConnectError
         flash('Connection issue. Check mail configuration!', 'danger')
-        current_app.logger_admin.info('Email service test: connection issue, wrong configuration')
+        current_app.logger_admin.info(f'Email service test: connection issue, wrong configuration. {error}')
         return False

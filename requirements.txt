@@ -8,6 +8,7 @@ chardet==3.0.4
 Click==7.0
 click-didyoumean==0.0.3
 click-repl==0.1.6
+dnspython==2.0.0
 elasticsearch==7.7.0
 Flask==1.1.1
 Flask-APScheduler==1.11.0
