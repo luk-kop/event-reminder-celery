@@ -27,12 +27,14 @@ def email_content(recipients_list, event, smtp_obj, msg):
         try:
             smtp_obj.send_message(msg)
             current_app.logger_admin.info(f'Email service: msg has been sent to "{recipient}"')
-            print(f'Mail sent to {recipient}')
+            # only for test
+            # print(f'Mail sent to {recipient}')
             recipients_rx.append(recipient)
         except smtplib.SMTPRecipientsRefused:
             current_app.logger_admin.info(f'Email service: The problem occurred while sending a message '
                                           f'to "{recipient}". Probably email doesn\'t exist')
-            print(f'Problem with {recipient}')
+            # only for test
+            # print(f'Problem with {recipient}')
             recipients_not_rx.append(recipient)
     current_app.logger_admin.info(f'Email service: all emails have been sent out')
     return recipients_rx

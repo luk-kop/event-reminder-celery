@@ -1,3 +1,4 @@
+from flask import current_app
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, IntegerField
 from wtforms.validators import InputRequired, EqualTo, Regexp, Length, NumberRange, Optional, Email
@@ -54,12 +55,10 @@ class NotifyForm(FlaskForm):
     notify_interval = IntegerField(label='Notification interval',
                                    validators=[InputRequired(), NumberRange(min=1)])
     mail_server = StringField(label='Mail server',
-                              validators=[InputRequired(),
-                                          Length(max=70)])
+                              validators=[InputRequired(), Length(max=70)])
     mail_port = IntegerField(label='Mail port',
                              validators=[InputRequired(), NumberRange(min=1)])
     mail_security = SelectField(label='Mail security',
                                 choices=[('tls', 'TLS'), ('ssl', 'SSL')])
     mail_username = StringField(label='Mail username',
-                                validators=[InputRequired(),
-                                            Length(max=70)])
+                                validators=[InputRequired(), Length(max=70)])

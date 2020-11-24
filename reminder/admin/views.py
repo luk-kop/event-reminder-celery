@@ -19,6 +19,7 @@ from reminder.admin.forms import NewUserForm, EditUserForm, NotifyForm
 from reminder.custom_wtforms import flash_errors
 from redbeat import RedBeatSchedulerEntry as Entry
 from redis import Redis, ConnectionError
+import redis.exceptions
 
 
 admin_bp = Blueprint('admin_bp', __name__,
@@ -53,38 +54,6 @@ def update_last_seen():
     if current_user.is_authenticated:
         current_user.user_seen()
         db.session.commit()
-
-
-def background_job():
-    """
-    Run process in background.
-    """
-    with scheduler.app.app_context():
-        today = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-        events_to_notify = Event.query.filter(Event.time_notify <= today,
-                                              Event.is_active == True,
-                                              Event.to_notify == True,
-                                              Event.notification_sent == False).all()
-        try:
-            for event in events_to_notify:
-                users_to_notify = [user for user in event.notified_users]
-                smtp_mail.send_email('Attention! Upcoming event!',
-                                     users_to_notify,
-                                     event,
-                                     cache.get('mail_server'),
-                                     cache.get('mail_port'),
-                                     cache.get('mail_security'),
-                                     cache.get('mail_username'),
-                                     cache.get('mail_password'))
-                current_app.logger_admin.info(f'Notification service: notification has been sent to: {users_to_notify}')
-                # only for test
-                # print(f'Mail sent to {users_to_notify}')
-                event.notification_sent = True
-            db.session.commit()
-        except Exception as error:
-            current_app.logger_admin.error(f'Background job error: {error}')
-            # Remove job when error occure.
-            scheduler.remove_job('my_job_id')
 
 
 @admin_bp.route('/events')
@@ -216,9 +185,6 @@ def users():
     """
     List user's data from db in Admin Portal.
     """
-
-    # entry = Entry.from_key(key='redbeat:test-task', app=celery)
-    # entry.delete()
     # Pagination
     users_per_page = 10
     page = request.args.get('page', 1, type=int)
@@ -444,9 +410,9 @@ def notify():
         # Get scheduler job if exists.
         scheduler_job = Entry.from_key(key='redbeat:background-task', app=celery)
         # scheduler_job.delete()
-    except KeyError:
+    except (KeyError ,redis.exceptions.ConnectionError):
         # Create scheduler job if not already exists.
-        interval = schedules.schedule(run_every=10)
+        interval = schedules.schedule(run_every=60)
         scheduler_job = Entry(name='background-task',
                               task='notify_async_check',
                               schedule=interval,
@@ -476,7 +442,7 @@ def notify():
             # Fetch data from form.
             notify_status_form = request.form.get('notify_status')
             notify_unit_form = request.form.get('notify_unit')
-            notify_interval_form = request.form.get('notify_interval')
+            notify_interval_form = int(request.form.get('notify_interval'))
             mail_server_form = request.form.get('mail_server')
             mail_port_form = request.form.get('mail_port')
             mail_security_form = request.form.get('mail_security')
@@ -507,12 +473,22 @@ def notify():
                                                         notify_config['mail_password'])
             else:
                 test_mail_config = False
+            # Save notification settings to db.
+            if notify_unit_form != notify_config['notify_unit'] or \
+                    notify_interval_form != notify_config['notify_interval']:
+                notification_config.notify_unit = notify_unit_form
+                notification_config.notify_interval = int(notify_interval_form)
+                db.session.commit()
+                if not scheduler_job.enabled:
+                    current_app.logger_admin.info(f'Notification service config has been changed by '
+                                                  f'"{current_user.username}"')
+                    flash('The notification service config has been changed!', 'success')
 
             if not notify_status_form and scheduler_job.enabled:
                 scheduler_job.enabled = False
                 scheduler_job.save()
                 current_app.logger_admin.info(f'Notification service has been turned off by "{current_user.username}"')
-                flash('The notify service has been turned off!', 'success')
+                flash('The notification service has been turned off!', 'success')
             elif scheduler_job.enabled and not test_mail_config:
                 scheduler_job.enabled = False
                 scheduler_job.save()
@@ -533,15 +509,7 @@ def notify():
                 scheduler_job.schedule = interval
                 scheduler_job.reschedule(last_run_at=datetime.datetime.utcnow() - datetime.timedelta(seconds=interval_time))
                 scheduler_job.save()
-                flash('Connection with mail server established correctly! The notify service is running!', 'success')
-            # Save notification settings to db.
-            if notify_unit_form != notify_config['notify_unit'] or notify_interval_form != notify_config['notify_interval']:
-                notification_config.notify_unit = notify_unit_form
-                notification_config.notify_interval = int(notify_interval_form)
-                db.session.commit()
-                if not scheduler_job:
-                    current_app.logger_admin.info(f'Notification service config has been changed by '
-                                                  f'"{current_user.username}"')
+                flash('Connection with mail server established correctly! The notification service is running!', 'success')
             # Update the rest of the data in 'notify_config' dic.
             notify_config['notify_unit'] = notify_unit_form
             notify_config['notify_interval'] = notify_interval_form
