@@ -36,13 +36,12 @@ def before_app_req():
     Event.reindex()
     Log.reindex()
     # Caching mail server config - in order to allow the admin to change the configuration
-    # while the application is running
+    # while the application is running (store mail config data in db is not desired)
     cache.set_many({'mail_server': current_app.config.get('MAIL_SERVER'),
                     'mail_port': current_app.config.get('MAIL_PORT'),
                     'mail_security': current_app.config.get('MAIL_SECURITY'),
                     'mail_username': current_app.config.get('MAIL_DEFAULT_SENDER'),
-                    'mail_password': current_app.config.get('MAIL_PASSWORD')
-                    })
+                    'mail_password': current_app.config.get('MAIL_PASSWORD'),})
     # cache.clear()
 
 
@@ -393,24 +392,23 @@ def notify():
     """
     View allows to start notification service and change the service configuration.
     """
-    mail_config_cache = cache.get_dict('mail_server', 'mail_port', 'mail_security', 'mail_username', 'mail_password')
+    # Get mail config from cache
+    mail_config_cache = cache.get_dict('mail_server',
+                                       'mail_port',
+                                       'mail_security',
+                                       'mail_username',
+                                       'mail_password')
     # Notification config data (for interval and interval unit).
     notification_config = Notification.query.first()
-    # Mail config data.
-    notify_config = {
-        'mail_server': mail_config_cache.get('mail_server'),
-        'mail_port': mail_config_cache.get('mail_port'),
-        'mail_security': mail_config_cache.get('mail_security'),
-        'mail_username': mail_config_cache.get('mail_username'),
-        'mail_password': mail_config_cache.get('mail_password'),
-        'notify_unit': notification_config.notify_unit,
-        'notify_interval': notification_config.notify_interval,
-    }
+    # Notify config data.
+    notify_config = mail_config_cache.copy()
+    notify_config['notify_unit'] = notification_config.notify_unit
+    notify_config['notify_interval'] = notification_config.notify_interval
     try:
         # Get scheduler job if exists.
         scheduler_job = Entry.from_key(key='redbeat:background-task', app=celery)
         # scheduler_job.delete()
-    except (KeyError ,redis.exceptions.ConnectionError):
+    except (KeyError, redis.exceptions.ConnectionError):
         # Create scheduler job if not already exists.
         interval = schedules.schedule(run_every=60)
         scheduler_job = Entry(name='background-task',
@@ -421,49 +419,54 @@ def notify():
                               app=celery)
     if request.method == "POST":
         form = NotifyForm()
-        # Check whether redis is running
-        redis_broker_url = celery.conf['broker_url']
-        mo = re.search(r'^redis://(.*):(\d{1,5})/', redis_broker_url)
-        if mo:
-            redis_broker_host = mo.group(1)
-            redis_broker_port = mo.group(2)
-            rs = Redis(host=redis_broker_host, port=redis_broker_port)
-            try:
-                rs.ping()
-            except ConnectionError:
-                current_app.logger_admin.error(f'Redis host "{redis_broker_host}" is not running.')
-                flash("Sorry! Redis host is not running!", 'danger')
-                return redirect(url_for('admin_bp.notify'))
-        else:
-            flash("Sorry! Check redis host configuration", 'danger')
-            return redirect(url_for('admin_bp.notify'))
         # Validate form data on server-side
         if form.validate_on_submit():
             # Fetch data from form.
             notify_status_form = request.form.get('notify_status')
             notify_unit_form = request.form.get('notify_unit')
             notify_interval_form = int(request.form.get('notify_interval'))
-            mail_server_form = request.form.get('mail_server')
-            mail_port_form = request.form.get('mail_port')
-            mail_security_form = request.form.get('mail_security')
-            mail_username_form = request.form.get('mail_username')
-            mail_password_form = request.form.get('mail_password')
-            # Update the data in 'notify_config' div and config object (if required).
-            if mail_server_form != notify_config['mail_server']:
-                cache.set('mail_server', mail_server_form)
-                notify_config['mail_server'] = mail_server_form
-            if mail_port_form != notify_config['mail_port']:
-                cache.set('mail_port', mail_port_form)
-                notify_config['mail_port'] = mail_port_form
-            if mail_security_form != notify_config['mail_security']:
-                cache.set('mail_security', mail_security_form)
-                notify_config['mail_security'] = mail_security_form
-            if mail_username_form != notify_config['mail_username']:
-                cache.set('mail_username', mail_username_form)
-                notify_config['mail_username'] = mail_username_form
-            if mail_password_form:
-                cache.set('mail_password', mail_password_form)
-                notify_config['mail_password'] = mail_password_form
+            # Checks whether the data provided in the form differs from those stored in the cache
+            # and update the data in 'notify_config' div and config object (if required).
+            config_changed = False
+            for key, val in notify_config.items():
+                if key in form.data.keys() and key in mail_config_cache.keys():
+                    if notify_config[key] != str(form.data[key]) and str(form.data[key]) != '':
+                        cache.set(key, str(form.data[key]))
+                        notify_config[key] = str(form.data[key])
+                        config_changed = True
+            # Checks whether the data provided in the form differs from those stored in the db
+            if notify_unit_form != notify_config['notify_unit'] or \
+                    notify_interval_form != notify_config['notify_interval']:
+                notification_config.notify_unit = notify_unit_form
+                notification_config.notify_interval = int(notify_interval_form)
+                db.session.commit()
+                # Update the rest of the data in 'notify_config' dic.
+                notify_config['notify_unit'] = notify_unit_form
+                notify_config['notify_interval'] = notify_interval_form
+                config_changed = True
+            # Check whether redis is running
+            redis_broker_url = celery.conf['broker_url']
+            mo = re.search(r'^redis://(.*):(\d{1,5})/', redis_broker_url)
+            if mo:
+                redis_broker_host = mo.group(1)
+                redis_broker_port = mo.group(2)
+                rs = Redis(host=redis_broker_host, port=redis_broker_port)
+                try:
+                    rs.ping()
+                except ConnectionError:
+                    if notify_status_form == 'on':
+                        # redirect only when redis is not running
+                        current_app.logger_admin.error(f'Redis host "{redis_broker_host}" is not running.')
+                        flash("Sorry! Redis host is not running!", 'danger')
+                        return render_template('admin/notify.html', service_run=False, **notify_config)
+            else:
+                flash("Sorry! Check redis host configuration", 'danger')
+                return render_template('admin/notify.html', service_run=False, **notify_config)
+            # Flash msg when config has been changed by user
+            if not scheduler_job.enabled and config_changed:
+                current_app.logger_admin.info(f'Notification service config has been changed by '
+                                              f'"{current_user.username}"')
+                flash('The notification service config has been changed!', 'success')
             # Test mail configuration before running service
             if notify_status_form == 'on':
                 test_mail_config = smtp_mail.test_email(notify_config['mail_server'],
@@ -473,17 +476,7 @@ def notify():
                                                         notify_config['mail_password'])
             else:
                 test_mail_config = False
-            # Save notification settings to db.
-            if notify_unit_form != notify_config['notify_unit'] or \
-                    notify_interval_form != notify_config['notify_interval']:
-                notification_config.notify_unit = notify_unit_form
-                notification_config.notify_interval = int(notify_interval_form)
-                db.session.commit()
-                if not scheduler_job.enabled:
-                    current_app.logger_admin.info(f'Notification service config has been changed by '
-                                                  f'"{current_user.username}"')
-                    flash('The notification service config has been changed!', 'success')
-
+            # Notification service engine
             if not notify_status_form and scheduler_job.enabled:
                 scheduler_job.enabled = False
                 scheduler_job.save()
@@ -510,9 +503,6 @@ def notify():
                 scheduler_job.reschedule(last_run_at=datetime.datetime.utcnow() - datetime.timedelta(seconds=interval_time))
                 scheduler_job.save()
                 flash('Connection with mail server established correctly! The notification service is running!', 'success')
-            # Update the rest of the data in 'notify_config' dic.
-            notify_config['notify_unit'] = notify_unit_form
-            notify_config['notify_interval'] = notify_interval_form
         if form.errors:
             flash_errors(form)
     # Determine whether some scheduler jobs exist - if True, notification service is running

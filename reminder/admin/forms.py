@@ -62,3 +62,4 @@ class NotifyForm(FlaskForm):
                                 choices=[('tls', 'TLS'), ('ssl', 'SSL')])
     mail_username = StringField(label='Mail username',
                                 validators=[InputRequired(), Length(max=70)])
+    mail_password = PasswordField(label='Mail Password')
