@@ -38,7 +38,7 @@ $ source venv/bin/activate
 
 ### Environment variables
 
-Event Reminder application depends on some specific environment variables. 
+The **Event Reminder** application depends on some specific environment variables. 
 To run application successfully the environment variables should be stored in `.env` file in the root application directory (`event-reminder` dir).
 
 ```
@@ -58,7 +58,7 @@ CELERY_REDBEAT_REDIS_URL=redis://localhost:6379/1
 The `.env` file will be imported by application on startup.
 
 ### Elasticsearch server
-Elasticsearch is not required to run the Event Reminder application. Without the specified 'ELASTICSEARCH_URL' variable and/or running the Elasticsearch node, the application will run, but no search function will be available.
+Elasticsearch is not required to run the **Event Reminder** application. Without the specified 'ELASTICSEARCH_URL' variable and/or running the Elasticsearch node, the application will run, but no search function will be available.
 
 The fastest and easiest way to start Elasticsearch node is to run it in Docker container.
 You can obtain Elasticsearch for Docker issuing below command (examples for 7.7.0 version):
