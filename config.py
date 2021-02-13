@@ -29,7 +29,6 @@ class Config:
     CACHE_DIR = basedir.joinpath('tmp')
     CACHE_DEFAULT_TIMEOUT = 0
     # Database Config
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Email Config
     MAIL_SERVER = os.environ.get('MAIL_SERVER')
@@ -40,10 +39,6 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     # Check (validate) user's email address domain
     CHECK_EMAIL_DOMAIN = True if os.environ.get('CHECK_EMAIL_DOMAIN').lower() == 'True' else False
-    # Apscheduler Config
-    SCHEDULER_JOBSTORES = {
-        'default': SQLAlchemyJobStore(url=os.environ.get('DATABASE_URL_SCHEDULAR'))
-    }
     # Celery Config
     CELERY = {
         'broker_url': os.environ.get("CELERY_BROKER_URL"),

@@ -44,8 +44,10 @@ To run application successfully the environment variables should be stored in `.
 ```
 # '.env' file
 SECRET_KEY=use-some-random-key
-DEV_DATABASE_URL=sqlite:///app.db                   # example for SQLite for development
-DATABASE_URL_SCHEDULAR=sqlite:///schedular.db   # example for SQLite
+APPLICATION_MODE='development'                     # for development will use SQLite db
+# APPLICATION_MODE='production'                    # for production will use PostgreSQL db
+DEV_DATABASE_URL=sqlite:///app.db                  # example for SQLite
+PROD_DATABASE_URL=postgresql://reminderuser:password@db:5432/reminderdb     # example for PostgreSQL
 MAIL_SERVER=smtp.example.com
 MAIL_PORT=587
 MAIL_USERNAME=xxx.yyy@example.com               # account which will be used for SMTP email service
