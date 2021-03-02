@@ -76,18 +76,22 @@ $ docker run --name elasticsearch -p 9200:9200 -p 9300:9300 -e "discovery.type=s
 
 ## Running the App
 
-Before running the Event Reminder app you can use script `init_db.py` to initialize database and add some dummy data that can be used later in the processing.
+Before running the **Event Reminder** app you can use script `init_db.py` to initialize database and add some dummy data that can be used later in the processing.
 ```bash
-(venv) $ cd reminder
+# Below script will create default admin username 'admin' with password 'admin'
 (venv) $ python init_db.py
+# You can create a different user instead of the default one using proper options. Below example for username 'bob' with password 'LikePancakes123#'.
+(venv) $ python init_db.py -u bob -p LikePancakes123#
+# For more info please use:
+(venv) $ python init_db.py --help
 ```
 
 After adding dummy data, you can start the application. First of all set the `FLASK_APP` environment variable to point `run.py` script and then invoke `flask run` command.
 ```bash
 # On the first terminal run:
+(venv) $ cd reminder/
 (venv) $ export FLASK_APP=run.py
 # in MS Windows OS run 'set FLASK_APP=run.py'
-(venv) $ cd ..
 (venv) $ flask run
 ```
 
