@@ -16,7 +16,6 @@ from reminder.extensions import (
     db,
     login_manager,
     csrf,
-    scheduler,
     cache,
     celery,
 )
@@ -60,29 +59,9 @@ def register_extensions(app):
     # Tell login_manager where cane find login page (here 'login' function)
     login_manager.login_view = 'auth_bp.login'
     login_manager.login_message_category = 'info'
-    # Initialize Apscheduler obj for background task
-    if not scheduler.running:
-        scheduler.init_app(app)
-        scheduler.start()
     # Initialize ElasticSearch
     app.elasticsearch = Elasticsearch([app.config['ELASTICSEARCH_URL']]) if app.config['ELASTICSEARCH_URL'] else None
     cache.init_app(app)
-    # Add periodic tasks - to delete
-    # celery_beat_schedule = {
-    #     "time_scheduler": {
-    #         "task": "app.timer",
-    #         # Run every 10 seconds
-    #         "schedule": 10.0,
-    #     }
-    # }
-    # app.celery = Celery(app.name)
-    # app.celery.conf.update(
-    #     broker=app.config['CELERY_BROKER_URL'],
-    #     result_backend=app.config["CELERY_RESULT_BACKEND"],
-    #     timezone="UTC",
-    #     beat_schedule=celery_beat_schedule,
-    # )
-    # celery.conf.update(app.config)    # Any additional configuration options for Celery can be passed directly from Flask's configuration
 
 
 def register_blueprints(app):

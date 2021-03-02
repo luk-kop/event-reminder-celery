@@ -10,7 +10,7 @@ import requests
 import elasticsearch.exceptions
 from celery import schedules
 
-from reminder.extensions import db, scheduler, cache, celery
+from reminder.extensions import db, cache, celery
 from reminder.models import Role, User, Event, Notification, Log
 from reminder.main import views as main_views
 from reminder.admin import smtp_mail
@@ -718,7 +718,18 @@ def dashboard():
         search_status = False
     else:
         search_status = True
-    notification_status = True if scheduler.get_jobs() else False
+    # Check whether redis is running
+    redis_broker_url = celery.conf['broker_url']
+    mo = re.search(r'^redis://(.*):(\d{1,5})/', redis_broker_url)
+    if mo:
+        try:
+            scheduler_job = Entry.from_key(key='redbeat:background-task', app=celery)
+            # notification_status = True if scheduler_job else False
+            notification_status = True if scheduler_job.enabled else False
+        except (KeyError, redis.exceptions.ConnectionError):
+            notification_status = False
+    else:
+        notification_status = False
     data = {
         'users_count': users_count,
         'standard_users_count': standard_users_count,
