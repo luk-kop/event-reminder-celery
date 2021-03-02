@@ -18,6 +18,7 @@ from reminder.extensions import (
     csrf,
     cache,
     celery,
+    server_session,
 )
 from reminder.custom_handler import DatabaseHandler
 from reminder.models import Event
@@ -62,6 +63,8 @@ def register_extensions(app):
     # Initialize ElasticSearch
     app.elasticsearch = Elasticsearch([app.config['ELASTICSEARCH_URL']]) if app.config['ELASTICSEARCH_URL'] else None
     cache.init_app(app)
+    # Server-Side session
+    server_session.init_app(app)
 
 
 def register_blueprints(app):

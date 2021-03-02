@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+import redis
 
 
 basedir = Path(__file__).resolve().parent
@@ -61,6 +62,9 @@ class Config:
         #     }
         # }
     }
+    # Server-Side session config
+    SESSION_TYPE = 'redis'
+    SESSION_REDIS = redis.from_url(os.environ.get('SESSION_REDIS'))
 
 
 class ProdConfig(Config):

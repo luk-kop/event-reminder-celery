@@ -56,11 +56,12 @@ ELASTICSEARCH_URL=http://localhost:9200         # optional
 CELERY_BROKER_URL=redis://localhost:6379/0
 CELERY_RESULT_BACKEND_URL=redis://localhost:6379/0
 CELERY_REDBEAT_REDIS_URL=redis://localhost:6379/1
+SESSION_REDIS=redis://localhost:6379/2
 ```
 The `.env` file will be imported by application on startup.
 
 ### Elasticsearch server
-Elasticsearch is not required to run the **Event Reminder** application. Without the specified 'ELASTICSEARCH_URL' variable and/or running the Elasticsearch node, the application will run, but no search function will be available.
+Elasticsearch is not required to run the **Event Reminder** application. Without the specified `ELASTICSEARCH_URL` variable and/or running the Elasticsearch node, the application will run, but no search function will be available.
 
 The fastest and easiest way to start Elasticsearch node is to run it in Docker container.
 You can obtain Elasticsearch for Docker issuing below command (examples for 7.7.0 version):
@@ -70,6 +71,13 @@ $ docker pull docker.elastic.co/elasticsearch/elasticsearch:7.7.0
 Then start a single node cluster with Docker:
 ```bash
 $ docker run --name elasticsearch -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" -d docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+```
+### Redis server
+Redis server is required to start application. Redis is used as a session server (server-side) and Celery broker. 
+
+The fastest and easiest way to start Redis is to run it in Docker container.
+```bash
+$ docker run --name redis-event -d -p 6379:6379 redis
 ```
 
 ***

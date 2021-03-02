@@ -4,6 +4,7 @@ from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_caching import Cache
 from celery import Celery
+from flask_session import Session
 
 
 db = SQLAlchemy()
@@ -11,3 +12,4 @@ login_manager = LoginManager()
 csrf = CSRFProtect()
 cache = Cache()
 celery = Celery()
+server_session = Session()
