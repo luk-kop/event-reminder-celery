@@ -1,0 +1,45 @@
+version: "3.9"
+services:
+  web:
+    build: 
+      context: .
+      dockerfile: ./docker/web/Dockerfile.gunicorn
+    command: bash -c "./docker/web/wait-for-elastic.sh elastic && gunicorn -w 2 --bind 0.0.0.0:8080 run:app"
+    ports:
+      - "8080:8080"
+    restart: always
+    env_file:
+      - ./docker/web/.env-web
+    depends_on:
+      - elastic
+      - db
+
+  elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+    restart: always
+    environment:
+      - discovery.type=single-node
+
+  db:
+    build:
+      context: ./docker/db/
+      dockerfile: Dockerfile.postgres
+    restart: always
+    env_file:
+      - ./docker/db/.env-db
+
+  redis:
+    image: redis
+    restart: always
+
+  worker:
+    build:
+      context: .
+      dockerfile: ./docker/worker/Dockerfile.worker
+    command: bash -c "./docker/web/wait-for-elastic.sh elastic && celery -A reminder.celery_app:app worker --beat --loglevel=info"
+    restart: always
+    env_file:
+      - ./docker/worker/.env-worker
+    depends_on:
+      - redis
+      - web

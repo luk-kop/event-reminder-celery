@@ -31,8 +31,8 @@ class Config:
     PERMANENT_SESSION_LIFETIME = 1800
     STATIC_FOLDER = 'static'
     # Cache Config
-    CACHE_TYPE = 'filesystem'
-    CACHE_DIR = basedir.joinpath('tmp')
+    CACHE_TYPE = 'RedisCache'
+    CACHE_REDIS_URL = os.environ.get('CACHE_REDIS')
     CACHE_DEFAULT_TIMEOUT = 0
     # Database Config
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -54,13 +54,6 @@ class Config:
         'redbeat_key_prefix': 'redbeat:',
         'beat_max_loop_interval': 5,
         'beat_schedule': {}
-        # 'beat_schedule': {
-        #     'time_scheduler': {
-        #         # 'task': 'reminder.tasks.example.dummy_task',
-        #         'task': 'dummy_task',
-        #         'schedule': 10.0,
-        #     }
-        # }
     }
     # Server-Side session config
     SESSION_TYPE = 'redis'

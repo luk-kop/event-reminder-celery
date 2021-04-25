@@ -9,6 +9,9 @@ from sqlalchemy import func, desc, asc
 import requests
 import elasticsearch.exceptions
 from celery import schedules
+from redbeat import RedBeatSchedulerEntry as Entry
+from redis import Redis, ConnectionError
+import redis.exceptions
 
 from reminder.extensions import db, cache, celery
 from reminder.models import Role, User, Event, Notification, Log
@@ -17,9 +20,6 @@ from reminder.admin import smtp_mail
 from reminder.custom_decorators import admin_required, login_required, cancel_click
 from reminder.admin.forms import NewUserForm, EditUserForm, NotifyForm
 from reminder.custom_wtforms import flash_errors
-from redbeat import RedBeatSchedulerEntry as Entry
-from redis import Redis, ConnectionError
-import redis.exceptions
 
 
 admin_bp = Blueprint('admin_bp', __name__,
@@ -37,11 +37,16 @@ def before_app_req():
     Log.reindex()
     # Caching mail server config - in order to allow the admin to change the configuration
     # while the application is running (store mail config data in db is not desired)
-    cache.set_many({'mail_server': current_app.config.get('MAIL_SERVER'),
-                    'mail_port': current_app.config.get('MAIL_PORT'),
-                    'mail_security': current_app.config.get('MAIL_SECURITY'),
-                    'mail_username': current_app.config.get('MAIL_DEFAULT_SENDER'),
-                    'mail_password': current_app.config.get('MAIL_PASSWORD'),})
+    try:
+        cache.set_many({
+            'mail_server': current_app.config['MAIL_SERVER'],
+            'mail_port': current_app.config['MAIL_PORT'],
+            'mail_security': current_app.config['MAIL_SECURITY'],
+            'mail_username': current_app.config['MAIL_DEFAULT_SENDER'],
+            'mail_password': current_app.config['MAIL_PASSWORD']
+        })
+    except KeyError as error:
+        current_app.logger_admin.error(f'Before first request: {error} env variable is not defined')
     # cache.clear()
 
 

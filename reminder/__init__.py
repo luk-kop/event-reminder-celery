@@ -95,7 +95,8 @@ def configure_logger(app):
 
     app.logger_general.addHandler((DatabaseHandler(db.session)))
 
-    # Customized logger attached to the application is convenient because anywhere in the application I can use current_app.logger.. to access it.
+    # Customized logger attached to the application is convenient because anywhere in the application I can use
+    # current_app.logger.. to access it.
     # Auth logger
     app.logger_auth = logging.getLogger("auth")
     file_handler_auth = RotatingFileHandler(f'{logs_dir}/auth.log', maxBytes=30720, backupCount=5)
@@ -124,7 +125,9 @@ def init_celery(app=None):
     celery.conf.update(app.config.get("CELERY", {}))
 
     class ContextTask(celery.Task):
-        """Make celery tasks work with Flask app context"""
+        """
+        Make celery tasks work with Flask app context
+        """
         def __call__(self, *args, **kwargs):
             with app.app_context():
                 return self.run(*args, **kwargs)

@@ -4,7 +4,7 @@
 [![Flask 1.1.1](https://img.shields.io/badge/Flask-1.1.2-blue.svg)](https://flask.palletsprojects.com/en/1.1.x/)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://lbesson.mit-license.org/)
 
-The **Event Reminder** is a simple web application based on **[Flask](https://flask.palletsprojects.com/en/1.1.x/)** framework, **[Bootstrap](https://getbootstrap.com/)** UI framework and **[FullCalendar](https://fullcalendar.io/)** full-sized JavaScript calendar. 
+>The **Event Reminder** is a simple web application based on **[Flask](https://flask.palletsprojects.com/en/1.1.x/)** framework, **[Bootstrap](https://getbootstrap.com/)** UI framework and **[FullCalendar](https://fullcalendar.io/)** full-sized JavaScript calendar. 
  
 The main purpose of the **Event Reminder** application is to send notifications about upcoming events to selected users. The application allows a standard user to enter event data, process it and display with the **FullCalendar** API. Moreover, the application has a built-in admin panel for the management of users, events, notification service, display app related logs and basic system info on app dashboard partly based on **[Chart.js](https://www.chartjs.org/)**. Sending reminder messages through the notification service is performed by third-party SMTP e-mail server and **Celery**/**Celery Readbeat** libraries.
 The application has implemented integration with the **Elasticsearch** search engine.
@@ -98,7 +98,7 @@ $ docker run --name redis-event -d -p 6379:6379 redis
 ```
 
 
-## Running the App
+## Running the app
 
 Before running the **Event Reminder** app you can use script `init_db.py` to initialize database and add some dummy data that can be used later in the processing.
 ```bash
