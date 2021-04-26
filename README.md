@@ -32,17 +32,18 @@ Project is created with the following Python third party packages:
 * [Flask](https://flask.palletsprojects.com/en/1.1.x/)
 * [Flask-SQLalchemy](https://flask-sqlalchemy.palletsprojects.com/en/2.x/)
 * [Flask-WTF](https://flask-wtf.readthedocs.io/en/stable/)
-* [Celery](https://docs.celeryproject.org/en/stable/index.html)
-* [Celery Redbeat](https://pypi.org/project/celery-redbeat/)
 * [Flask-Login](https://flask-login.readthedocs.io/en/latest/)
 * [Flask-Caching](https://flask-caching.readthedocs.io/en/latest/)
+* [Flask-Session](https://flask-session.readthedocs.io/en/latest/)
+* [Celery](https://docs.celeryproject.org/en/stable/index.html)
+* [Celery Redbeat](https://pypi.org/project/celery-redbeat/)
 * [Requests](https://requests.readthedocs.io/en/master/)
 * [elasticsearch](https://pypi.org/project/elasticsearch/)
 * [python-dotenv](https://pypi.org/project/python-dotenv/)
-* [Flask-Session](https://flask-session.readthedocs.io/en/latest/)
+* [psycopg2-binary](https://pypi.org/project/psycopg2-binary/)
 
-### Installation
 
+## Installation with virtualenv tool
 The application can be build locally with `virtualenv` tool. Run following commands in order to create virtual environment and install the required packages.
 
 ```bash
@@ -74,6 +75,7 @@ CELERY_BROKER_URL=redis://localhost:6379/0          # Celery config
 CELERY_RESULT_BACKEND_URL=redis://localhost:6379/0
 CELERY_REDBEAT_REDIS_URL=redis://localhost:6379/1
 SESSION_REDIS=redis://localhost:6379/2              # session-server
+CACHE_REDIS=redis://localhost:6379/3                # caching-server
 ```
 The `.env` file will be imported by application on startup.
 
@@ -97,8 +99,7 @@ The fastest and easiest way to start Redis is to run it in Docker container.
 $ docker run --name redis-event -d -p 6379:6379 redis
 ```
 
-
-## Running the app
+### Running the app
 
 Before running the **Event Reminder** app you can use script `init_db.py` to initialize database and add some dummy data that can be used later in the processing.
 ```bash
@@ -120,7 +121,7 @@ After adding dummy data, you can start the application. First of all set the `FL
 ```
 
 In order to use the notification service correctly, the Celery Beat and Celery Worker should be activated.
-They can be run in two ways: for the development or production environment.  
+They can be run in two ways: in **development** or **production** environment.  
 - For development or test purposes you can run Celery Beat and Celery Worker on the same terminal:
 ```bash
 # Run another (second) terminal session and enter the following commands:
@@ -136,4 +137,38 @@ source venv/bin/activate
 # On the third terminal run a Celery Beat
 source venv/bin/activate
 (venv} $ celery -A reminder.celery_app:app beat --loglevel=info
+```
+
+## Installation with Docker-Compose tool
+The application can be also build and run locally with Docker-Compose tool. Docker-Compose allows you to create working out-of-the-box example of **Event Reminder** application with Gunicorn, Elasticsearch, Redis, Celery worker and PostgreSQL with some dummy data on board.
+
+### Running the app
+To build and run app with Docker-Compose - clone the repo and follow the quick-start instructions below. 
+
+In order to correctly start the application, you must run the following commands in the project root directory (`event-reminder`).
+
+1. Before running `docker-compose` command you should create `.env-web`, `.env-db` and `.env-worker` files (ENVs for Flask app, PostgreSQL and Celery). The best solution is to copy the existing example files and edit the necessary data.
+```bash
+# Create docker .env files using examples from repository
+$ cp docker/web/.env-web-example docker/web/.env-web
+$ cp docker/db/.env-db-example docker/db/.env-db
+$ cp docker/worker/.env-worker-example docker/worker/.env-worker
+```
+2. Build and start containers using the commands shown below:
+```bash
+# To build containers specified in docker-compose.yml file
+$ docker-compose build
+# To start containers (add -d to run them in the background)
+$ docker-compose up -d
+# To verify status of the application:
+$ docker-compose ps
+```
+3. Open `http://localhost:8080` in your browser to see the application running. Login with default credentials:
+   - admin user: `admin`
+   - default pass: `admin`
+   
+
+4. To stop application run:
+```bash
+$ docker-compose stop
 ```
