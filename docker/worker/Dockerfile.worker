@@ -6,11 +6,13 @@ WORKDIR /home/worker
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# Copy services's files as watchdog user
-COPY --chown=worker:worker . .
+COPY --chown=worker:worker requirements.txt .
 
 # Install dependencies and netcat
 RUN pip install -r requirements.txt \
 	&& apt-get update && apt-get install -y curl && apt-get clean
+
+# Copy services's files as watchdog user
+COPY --chown=worker:worker . .
 
 USER worker
