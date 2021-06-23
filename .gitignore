@@ -2,6 +2,9 @@
 __pycache__/
 
 .env
+docker/web/.env-web
+docker/worker/.env-worker
+docker/db/.env-db
 event_env/
 venv-reminder/
 start_app.sh
