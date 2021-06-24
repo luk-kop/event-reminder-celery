@@ -9,18 +9,6 @@
 The main purpose of the **Event Reminder** application is to send notifications about upcoming events to selected users. The application allows a standard user to enter event data, process it and display with the **FullCalendar** API. Moreover, the application has a built-in admin panel for the management of users, events, notification service, display app related logs and basic system info on app dashboard partly based on **[Chart.js](https://www.chartjs.org/)**. Sending reminder messages through the notification service is performed by third-party SMTP e-mail server and **Celery**/**Celery Readbeat** libraries.
 The application has implemented integration with the **Elasticsearch** search engine.
 
-## Branch details
-The **Event Reminder** application has been designed in two versions with two different mechanisms to handle background (asynchronous) processes:
-- **APScheduler** (`master` branch)
-- **Celery** (`celery-version` branch)
-
-This branch is dedicated for **Celery**. In order to change to `master` branch (APScheduler) use the following commands:
-```bash
-# After cloning the repository
-cd event-reminder/
-git checkout master
-```
-
 ## Getting Started
 
 Below instructions will get you a copy of the project up and running on your local machine for development and testing purposes. 
