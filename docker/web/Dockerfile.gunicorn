@@ -1,4 +1,4 @@
-FROM python:3.7-slim-buster
+FROM python:3.8-slim-buster
 
 RUN useradd -d /home/web -m web
 WORKDIR /home/web
@@ -11,9 +11,11 @@ ENV PYTHONUNBUFFERED 1
 COPY --chown=web:web requirements.txt .
 
 # Install dependencies and gunicorn
-RUN pip install -r requirements.txt \
-	&& pip install gunicorn \
-	&& apt-get update && apt-get install -y curl && apt-get clean
+RUN pip install --no-cache-dir --requirement requirements.txt \
+	&& pip install --no-cache-dir gunicorn \
+	&& apt-get update && apt-get install -y --no-install-recommends curl=7.64.0-4+deb10u2 \
+	&& apt-get clean \
+	&& rm -rf /var/lib/apt/lists/*
 
 # Copy project's files as web user
 COPY --chown=web:web . .
