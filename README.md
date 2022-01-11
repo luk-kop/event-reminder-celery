@@ -156,7 +156,13 @@ $ docker-compose ps
    - default pass: `admin`
    
 
-4. To stop application run:
+4. To stop all app services, run:
 ```bash
 $ docker-compose stop
+```
+5. To bring everything down and remove the containers, run:
+```bash
+docker-compose down
+# To delete container volumes as well, use -v or --volumes flag.
+docker-compose down --volumes
 ```
